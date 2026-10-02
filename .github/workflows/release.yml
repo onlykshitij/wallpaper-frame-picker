@@ -1,0 +1,69 @@
+# Builds the standalone apps on Linux, Windows and macOS, tests each build,
+# and attaches them to a GitHub release when a v* tag is pushed. Run it by
+# hand from the Actions tab to get the builds as artifacts without a release.
+name: build
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04     # an older glibc, so the build runs on more distributions
+            smoke: dist/WallpaperFramePicker-linux-x86_64
+          - os: windows-latest
+            smoke: dist/WallpaperFramePicker-windows-x86_64.exe dist/WallpaperFramePicker-cli-windows-x86_64.exe
+          - os: macos-latest     # Apple Silicon
+            smoke: dist/WallpaperFramePicker.app/Contents/MacOS/WallpaperFramePicker
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Libraries Qt needs (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
+      - name: Build
+        run: uv run --with pyinstaller python packaging/build.py
+      - name: Test the build
+        run: uv run python packaging/smoke_test.py ${{ matrix.smoke }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wallpaper-frame-picker-${{ runner.os }}
+          path: dist/WallpaperFramePicker-*
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes
+
+  # Publishes to PyPI, which makes `uvx wallpaper-frame-picker` work. Off until you set
+  # up a trusted publisher on PyPI and the repository variable PUBLISH_TO_PYPI=true.
+  pypi:
+    if: startsWith(github.ref, 'refs/tags/v') && vars.PUBLISH_TO_PYPI == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv build
+      - uses: pypa/gh-action-pypi-publish@release/v1

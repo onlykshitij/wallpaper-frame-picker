@@ -1,0 +1,55 @@
+[project]
+name = "wallpaper-frame-picker"
+version = "0.1.0"
+description = "Find the sharpest frame of each shot in a video, pick the best pose, and export it as a full-resolution PNG, optionally AI-upscaled."
+readme = "README.md"
+license = "AGPL-3.0-or-later"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+keywords = ["video", "frames", "wallpaper", "shot detection", "sharpness", "upscaling", "real-esrgan"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: X11 Applications :: Qt",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics",
+    "Topic :: Multimedia :: Video",
+]
+dependencies = [
+    "av>=14",
+    "numpy",
+    "opencv-python-headless",
+    "platformdirs",
+    "pyside6>=6.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/onlykshitij/wallpaper-frame-picker"
+Source = "https://github.com/onlykshitij/wallpaper-frame-picker"
+Issues = "https://github.com/onlykshitij/wallpaper-frame-picker/issues"
+Releases = "https://github.com/onlykshitij/wallpaper-frame-picker/releases"
+
+[project.optional-dependencies]
+# Without this extra the app runs the upscaler with `uv run --script`,
+# which installs PyTorch into a separate environment on first use.
+upscale = ["torch", "spandrel"]
+
+[project.scripts]
+wallpaper-frame-picker-cli = "wallpaper_frame_picker.cli:main"
+
+[project.gui-scripts]
+wallpaper-frame-picker = "wallpaper_frame_picker.app:run"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wallpaper_frame_picker"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

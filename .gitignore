@@ -1,0 +1,33 @@
+# Your own videos, exports and scratch files. Keep them here or anywhere
+# outside the repository; nothing in local/ is ever committed.
+/local/
+
+# Media and model files, wherever they end up
+*.mp4
+*.mkv
+*.webm
+*.mov
+*.avi
+*.m4v
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.part
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
