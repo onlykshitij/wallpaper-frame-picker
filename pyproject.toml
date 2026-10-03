@@ -18,6 +18,7 @@ classifiers = [
 ]
 dependencies = [
     "av>=14",
+    "certifi",   # Mozilla's root certificates, when the system's check fails
     "numpy",
     "opencv-python-headless",
     "platformdirs",

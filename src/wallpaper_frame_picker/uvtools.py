@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 """Finding or downloading uv, and plain file downloads.
 
-Standard library only (plus platformdirs, through paths, and truststore),
-because the standalone launcher uses this before any other dependency is
-installed.
+Standard library only (plus platformdirs, through paths, truststore and
+certifi), because the standalone launcher uses this before any other
+dependency is installed.
 """
 import os
 import platform
@@ -36,15 +36,23 @@ class SetupError(RuntimeError):
 
 
 def ssl_context():
-    """Certificate checks done by the operating system, as in a browser.
+    """Certificate checks done by the operating system, as in a browser,
+    with Mozilla's root certificates (the list Firefox and uv use) as well.
     Python's own check only knows the root certificates already on the
     computer, but Windows adds most of them the first time a connection
-    needs one, so a fresh Windows rejects github.com."""
+    needs one, so a Windows that has not needed them yet rejects
+    github.com. Where Windows does not add them, Mozilla's list has them."""
     try:
         import truststore
     except ImportError:   # running from source without it
         return ssl.create_default_context()
-    return truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+    try:
+        import certifi
+        ctx.load_verify_locations(certifi.where())
+    except (ImportError, OSError):
+        pass
+    return ctx
 
 
 def download(url, dest, progress=None):

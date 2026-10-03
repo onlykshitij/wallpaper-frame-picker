@@ -33,6 +33,7 @@ PACKAGES = {
     "numpy": ("NumPy", "number crunching"),
     "platformdirs": ("platformdirs", "finds the settings folders"),
     "truststore": ("truststore", "checks certificates the way the system does"),
+    "certifi": ("certifi", "Mozilla's list of trusted certificates"),
 }
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 

@@ -22,7 +22,8 @@ def https_server(tmp_path):
     cert, key = tmp_path / "cert.pem", tmp_path / "key.pem"
     made = subprocess.run(["openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "1",
                            "-keyout", str(key), "-out", str(cert), "-subj", "/CN=localhost",
-                           "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1"], capture_output=True)
+                           "-addext", "subjectAltName=DNS:localhost,IP:127.0.0.1",
+                           "-addext", "extendedKeyUsage=serverAuth"], capture_output=True)
     if made.returncode:
         pytest.skip("this openssl cannot make the test certificate")
     www = tmp_path / "www"
@@ -53,12 +54,13 @@ def test_untrusted_certificate_is_explained(https_server, tmp_path):
     assert list(tmp_path.glob("file.bin*")) == []
 
 
-@pytest.mark.skipif(not sys.platform.startswith("linux"), reason="trusting a test certificate needs SSL_CERT_FILE")
-def test_trusted_certificate_downloads(https_server, tmp_path, monkeypatch):
+def test_certificates_the_system_lacks_come_from_certifi(https_server, tmp_path, monkeypatch):
+    # stands in for a root certificate that is in Mozilla's list but not on the computer
+    import certifi
     url, cert, www = https_server
     data = bytes(range(256)) * 1000
     (www / "file.bin").write_bytes(data)
-    monkeypatch.setenv("SSL_CERT_FILE", str(cert))
+    monkeypatch.setattr(certifi, "where", lambda: str(cert))
     seen = []
     dest = uvtools.download(url + "file.bin", tmp_path / "file.bin", lambda d, t: seen.append((d, t)))
     assert dest.read_bytes() == data and seen[-1] == (len(data), len(data))
