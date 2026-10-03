@@ -20,7 +20,8 @@ from pathlib import Path
 
 from . import __version__
 from .paths import data_dir
-from .uvtools import SetupError, ensure_uv, find_uv
+from .uvtools import (UV_CERT_ERROR, SetupError, ensure_uv, find_uv, use_system_certs_for_uv,
+                      uv_uses_system_certs)
 
 PYTHON = "3.12"
 # what each downloaded package is, for the install dialog
@@ -31,6 +32,7 @@ PACKAGES = {
     "opencv-python-headless": ("OpenCV", "sharpness and motion analysis"),
     "numpy": ("NumPy", "number crunching"),
     "platformdirs": ("platformdirs", "finds the settings folders"),
+    "truststore": ("truststore", "checks certificates the way the system does"),
 }
 ANSI = re.compile(r"\x1b\[[0-9;]*[A-Za-z]")
 
@@ -100,10 +102,24 @@ def clean_env():
         for var in ("TCL_LIBRARY", "TK_LIBRARY", "PYTHONHOME", "PYTHONPATH"):
             env.pop(var, None)
     env["NO_COLOR"] = "1"
+    if uv_uses_system_certs():
+        env.setdefault("UV_SYSTEM_CERTS", "1")   # also reaches the app, for the upscaler's install
     return env
 
 
 def _run(argv, progress, what):
+    tail = _run_once(argv, progress)
+    if tail and UV_CERT_ERROR.search("\n".join(tail)) and not uv_uses_system_certs():
+        progress("uv does not trust the server's certificate. Trying again with the system's certificate check…")
+        use_system_certs_for_uv()
+        tail = _run_once(argv, progress)
+    if tail:
+        raise SetupError(f"{what} failed:\n" + "\n".join(tail))
+
+
+def _run_once(argv, progress):
+    """Runs argv, passing its output lines to progress. Returns None on
+    success, or the last lines of output on failure."""
     proc = subprocess.Popen([str(a) for a in argv], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                             text=True, errors="replace", env=clean_env())
     tail = []
@@ -112,8 +128,9 @@ def _run(argv, progress, what):
         if line:
             tail = (tail + [line])[-8:]
             progress(line)
-    if proc.wait() != 0:
-        raise SetupError(f"{what} failed:\n" + "\n".join(tail))
+    if proc.wait() == 0:
+        return None
+    return tail or ["(no output)"]
 
 
 def install(progress):

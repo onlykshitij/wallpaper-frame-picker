@@ -62,6 +62,8 @@ The download is a small launcher, about 15 MB. The first time it starts, it show
 
 Press Install dependencies and the window shows each step as it runs. If something fails, the full log stays in the window, with a Copy log button, and is also saved to `install.log` in the data folder. Later launches start the app directly and work offline. To install everything without the window, for example on a server, run the launcher with `--install-deps`.
 
+The launcher checks download certificates with the operating system, as a browser does. Downloads therefore also work on company networks that inspect secure connections, as long as the network's own certificate is installed on the computer.
+
 The Linux launcher runs on any 64-bit glibc distribution from about 2019 on (glibc 2.28 or newer), including Debian 10+, Ubuntu 20.04+, Fedora, RHEL, AlmaLinux and Rocky Linux 8+, Arch and openSUSE. It installs system packages with apt, dnf, zypper or pacman; on other distributions it lists the libraries to install yourself. On RHEL-compatible systems in an X11 session, one library (`libxcb-cursor`) comes from EPEL, so enable it first with `sudo dnf install epel-release`. Distributions built on musl instead of glibc, such as Alpine, are not supported.
 
 The apps are not code-signed. Downloaded with the commands above they open directly. Downloaded through a browser, Windows shows a SmartScreen warning (choose More info, then Run anyway) and macOS refuses the first start (right-click the app, choose Open, then Open again).
@@ -189,7 +191,7 @@ wallpaper-frame-picker-cli export video.mp4 frames/ --picks sheets/picks.txt
 | Upscaling models | the user data folder, `~/.local/share/wallpaper-frame-picker/models` on Linux | `FRAME_PICKER_MODELS` |
 | The standalone app's Python, Qt, PyAV, OpenCV and NumPy | the user data folder, in `runtime/` | `FRAME_PICKER_DATA` |
 | The launcher's install log | the user data folder, `install.log` | `FRAME_PICKER_DATA` |
-| The app's own copy of uv, if it needed one | the user data folder, in `bin/` | `FRAME_PICKER_DATA` |
+| The app's own copy of uv, if it needed one | the user data folder, in `bin/` | `FRAME_PICKER_DATA`; `FRAME_PICKER_OWN_UV=1` uses this copy even when uv is on PATH |
 | App settings | Qt's settings file for `wallpaper-frame-picker` | |
 
 An analysis of a 4-minute 4K video takes about 150 MB, mostly thumbnails. Deleting the cache folder only means the next analysis starts from scratch.

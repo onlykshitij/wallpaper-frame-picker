@@ -1,6 +1,6 @@
 [project]
 name = "wallpaper-frame-picker"
-version = "0.1.1"
+version = "0.1.2"
 description = "Find the sharpest frame of each shot in a video, pick the best pose, and export it as a full-resolution PNG, optionally AI-upscaled."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -22,6 +22,7 @@ dependencies = [
     "opencv-python-headless",
     "platformdirs",
     "pyside6-essentials>=6.6",
+    "truststore>=0.10",   # certificate checks by the operating system
 ]
 
 [project.urls]

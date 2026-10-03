@@ -39,6 +39,21 @@ jobs:
       - name: Check that the Linux build runs on any distribution
         if: runner.os == 'Linux'
         run: uv run --python 3.12 --with pyinstaller python packaging/check_bundle.py build/AppDir
+      - name: Remove the root certificates github.com uses (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # Windows adds most root certificates the first time a connection needs
+          # one. Without these, the runner is like a computer that has not visited
+          # GitHub yet, where Python's own certificate check rejects github.com.
+          $roots = Get-ChildItem Cert:\LocalMachine\Root, Cert:\LocalMachine\AuthRoot |
+            Where-Object { $_.Subject -match 'USERTrust ECC Certification Authority|Sectigo Public Server Authentication Root E46' }
+          $roots | ForEach-Object { "removing $($_.Subject) from $($_.PSParentPath)" }
+          $roots | Remove-Item
+          uv run --python 3.12 --no-project python -c "import urllib.request; urllib.request.urlopen('https://github.com')"
+          if ($LASTEXITCODE -eq 0) { throw "Python still trusts github.com, so this is not like a fresh Windows" }
+          "Python's own check now rejects github.com"
+          exit 0
       - name: Test the build
         run: uv run --python 3.12 python packaging/smoke_test.py ${{ matrix.smoke }}
       - name: Test video for the distribution tests (Linux)

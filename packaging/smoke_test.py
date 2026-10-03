@@ -30,6 +30,7 @@ def main():
         tmp = Path(tmp)
         env = {**os.environ, "FRAME_PICKER_CACHE": str(tmp / "cache"), "FRAME_PICKER_DATA": str(tmp / "data"),
                "XDG_CONFIG_HOME": str(tmp / "config")}
+        env["FRAME_PICKER_OWN_UV"] = "1"   # download uv, as on most computers, though CI has it on PATH
         video = tmp / "smoke.webm"
         make_video(video)
 

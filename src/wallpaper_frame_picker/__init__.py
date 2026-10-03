@@ -2,7 +2,7 @@
 """Wallpaper Frame Picker: find the sharpest frame of each shot in a video and export
 the ones you pick as full-resolution PNGs, optionally AI-upscaled."""
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 SOURCE_URL = "https://github.com/onlykshitij/wallpaper-frame-picker"
 
 NOTICE = f"""Wallpaper Frame Picker {__version__}
