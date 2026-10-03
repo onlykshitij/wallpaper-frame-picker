@@ -39,7 +39,7 @@ upscale = ["torch", "spandrel"]
 wallpaper-frame-picker-cli = "wallpaper_frame_picker.cli:main"
 
 [project.gui-scripts]
-wallpaper-frame-picker = "wallpaper_frame_picker.app:run"
+wallpaper-frame-picker = "wallpaper_frame_picker.__main__:main"   # checks system libraries first
 
 [dependency-groups]
 dev = ["pytest>=8"]
