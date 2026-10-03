@@ -1,6 +1,9 @@
-# Builds the standalone apps on Linux, Windows and macOS, tests each build,
-# and attaches them to a GitHub release when a v* tag is pushed. Run it by
-# hand from the Actions tab to get the builds as artifacts without a release.
+# Builds the standalone launcher on Linux, Windows and macOS and tests each
+# build, including the first-launch install of the dependencies. The Linux
+# launcher is then run on several distributions, starting from bare
+# containers so the launcher has to install Qt's system libraries itself.
+# Pushing a v* tag publishes the builds as a GitHub release. Run it by hand
+# from the Actions tab to get the builds as artifacts without a release.
 name: build
 
 on:
@@ -8,13 +11,16 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+env:
+  UV_PYTHON_PREFERENCE: only-managed   # portable Python builds, so the launcher runs everywhere
+
 jobs:
   build:
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-22.04     # an older glibc, so the build runs on more distributions
+          - os: ubuntu-22.04
             smoke: dist/WallpaperFramePicker-linux-x86_64
           - os: windows-latest
             smoke: dist/WallpaperFramePicker-windows-x86_64.exe dist/WallpaperFramePicker-cli-windows-x86_64.exe
@@ -28,24 +34,84 @@ jobs:
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
       - name: Build
-        run: uv run --with pyinstaller python packaging/build.py
+        run: uv run --python 3.12 --with pyinstaller python packaging/build.py
+      - name: Check that the Linux build runs on any distribution
+        if: runner.os == 'Linux'
+        run: uv run --python 3.12 --with pyinstaller python packaging/check_bundle.py dist/WallpaperFramePicker-linux-x86_64
       - name: Test the build
-        run: uv run python packaging/smoke_test.py ${{ matrix.smoke }}
+        run: uv run --python 3.12 python packaging/smoke_test.py ${{ matrix.smoke }}
+      - name: Test video for the distribution tests (Linux)
+        if: runner.os == 'Linux'
+        run: uv run --python 3.12 python -c "import sys; sys.path.insert(0, 'tests'); from conftest import make_video; make_video('dist-smoke.webm')"
       - uses: actions/upload-artifact@v4
         with:
           name: wallpaper-frame-picker-${{ runner.os }}
           path: dist/WallpaperFramePicker-*
           if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: runner.os == 'Linux'
+        with:
+          name: smoke-video
+          path: dist-smoke.webm
+
+  distros:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: debian:11
+            prepare: apt-get update && apt-get install -y ca-certificates
+          - image: ubuntu:20.04
+            prepare: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates
+          - image: ubuntu:24.04
+            prepare: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates
+          - image: almalinux:8     # libxcb-cursor comes from EPEL on RHEL-compatible systems
+            prepare: dnf install -y epel-release ca-certificates
+          - image: fedora:latest
+            prepare: dnf install -y ca-certificates
+          - image: archlinux:latest
+            prepare: pacman -Sy --noconfirm ca-certificates
+          - image: opensuse/tumbleweed
+            prepare: zypper --non-interactive install ca-certificates
+    runs-on: ubuntu-latest
+    container: ${{ matrix.image }}
+    steps:
+      - name: Prepare
+        run: ${{ matrix.prepare }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: wallpaper-frame-picker-Linux
+      - uses: actions/download-artifact@v4
+        with:
+          name: smoke-video
+      - name: Install the dependencies, analyze, export and start the app
+        run: |
+          set -eu
+          app=./WallpaperFramePicker-linux-x86_64
+          chmod +x "$app"
+          "$app" --version
+          "$app" --install-deps
+          "$app" cli analyze dist-smoke.webm
+          "$app" cli export dist-smoke.webm out --frames 5 230
+          test "$(ls out/*.png | wc -l)" -eq 2
+          set +e
+          QT_QPA_PLATFORM=offscreen timeout 20 "$app" dist-smoke.webm
+          code=$?
+          set -e
+          test "$code" -eq 124   # still running when stopped
+          echo "works on ${{ matrix.image }}"
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs: [build, distros]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: wallpaper-frame-picker-*
           path: dist
           merge-multiple: true
       - name: Publish the release
@@ -57,7 +123,7 @@ jobs:
   # up a trusted publisher on PyPI and the repository variable PUBLISH_TO_PYPI=true.
   pypi:
     if: startsWith(github.ref, 'refs/tags/v') && vars.PUBLISH_TO_PYPI == 'true'
-    needs: build
+    needs: [build, distros]
     runs-on: ubuntu-latest
     environment: pypi
     permissions:

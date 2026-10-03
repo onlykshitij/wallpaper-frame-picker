@@ -10,22 +10,19 @@ lines; images go through .npy files in a temporary folder.
 import importlib.util
 import itertools
 import json
-import os
-import platform
 import shutil
 import subprocess
 import sys
-import tarfile
 import tempfile
 import threading
-import urllib.request
-import zipfile
 from collections import deque
 from pathlib import Path
 
 import numpy as np
 
 from .paths import data_dir, models_dir
+from .uvtools import SetupError, ensure_uv, find_uv, install_uv  # noqa: F401 (re-exported)
+from .uvtools import download as download_model  # noqa: F401 (re-exported)
 
 SCRIPT = Path(__file__).resolve().with_name("upscale_server.py")
 MODEL_SUFFIXES = (".pth", ".pt", ".ckpt", ".safetensors")
@@ -53,59 +50,6 @@ def torch_here():
     return all(importlib.util.find_spec(m) is not None for m in ("torch", "spandrel"))
 
 
-# uv release archives, by (operating system, machine)
-UV_ASSETS = {
-    ("linux", "x86_64"): "uv-x86_64-unknown-linux-gnu.tar.gz",
-    ("linux", "aarch64"): "uv-aarch64-unknown-linux-gnu.tar.gz",
-    ("darwin", "x86_64"): "uv-x86_64-apple-darwin.tar.gz",
-    ("darwin", "arm64"): "uv-aarch64-apple-darwin.tar.gz",
-    ("windows", "amd64"): "uv-x86_64-pc-windows-msvc.zip",
-    ("windows", "arm64"): "uv-aarch64-pc-windows-msvc.zip",
-}
-UV_RELEASES = "https://github.com/astral-sh/uv/releases/latest/download/"
-
-
-def _uv_name():
-    return "uv.exe" if sys.platform == "win32" else "uv"
-
-
-def find_uv():
-    """uv on PATH, or the private copy in the data folder, or None."""
-    own = data_dir() / "bin" / _uv_name()
-    return shutil.which("uv") or (str(own) if own.exists() else None)
-
-
-def install_uv(progress=None):
-    """Downloads uv from its GitHub releases into the data folder."""
-    key = (platform.system().lower(), platform.machine().lower())
-    asset = UV_ASSETS.get(key)
-    if asset is None:
-        raise UpscalerError(f"No uv download for {key[0]} on {key[1]}; install uv yourself: "
-                            "https://docs.astral.sh/uv/")
-    url = os.environ.get("FRAME_PICKER_UV_URL", UV_RELEASES + asset)
-    bin_dir = data_dir() / "bin"
-    bin_dir.mkdir(parents=True, exist_ok=True)
-    archive = download_model(url, bin_dir / asset, progress)
-    want = _uv_name()
-    try:
-        if asset.endswith(".zip"):
-            with zipfile.ZipFile(archive) as z:
-                member = next(m for m in z.namelist() if Path(m).name == want)
-                data = z.read(member)
-        else:
-            with tarfile.open(archive) as t:
-                member = next(m for m in t.getmembers() if Path(m.name).name == want and m.isfile())
-                data = t.extractfile(member).read()
-    except StopIteration:
-        raise UpscalerError(f"{asset} has no {want} in it")
-    finally:
-        archive.unlink(missing_ok=True)
-    dest = bin_dir / want
-    dest.write_bytes(data)
-    dest.chmod(0o755)
-    return str(dest)
-
-
 def _ready_marker():
     return data_dir() / "upscaler-ready"
 
@@ -120,30 +64,8 @@ def list_models():
     return sorted(p for p in models_dir().iterdir() if p.suffix.lower() in MODEL_SUFFIXES)
 
 
-class UpscalerError(RuntimeError):
+class UpscalerError(SetupError):
     pass
-
-
-def download_model(url, dest, progress=None):
-    """Downloads a model file to dest, via dest.part so a failed download
-    leaves nothing behind. progress(done_bytes, total_bytes)."""
-    dest = Path(dest)
-    part = dest.with_name(dest.name + ".part")
-    try:
-        req = urllib.request.Request(url, headers={"User-Agent": "wallpaper-frame-picker"})
-        with urllib.request.urlopen(req, timeout=60) as r, open(part, "wb") as fh:
-            total = int(r.headers.get("Content-Length") or 0)
-            done = 0
-            while chunk := r.read(1 << 16):
-                fh.write(chunk)
-                done += len(chunk)
-                if progress:
-                    progress(done, total)
-        part.replace(dest)
-    except BaseException:
-        part.unlink(missing_ok=True)
-        raise
-    return dest
 
 
 class UpscaleClient:
@@ -166,16 +88,7 @@ class UpscaleClient:
     def _command(self):
         if torch_here():
             return [sys.executable, "-m", "wallpaper_frame_picker.upscale_server", "--serve"]
-        uv = find_uv()
-        if uv is None:
-            self.on_status("Downloading uv (about 20 MB) to install PyTorch with…")
-            shown = [-1]
-
-            def progress(done, total):
-                if done >> 20 != shown[0]:   # once per MB
-                    shown[0] = done >> 20
-                    self.on_status(f"Downloading uv: {done >> 20} of {total >> 20} MB")
-            uv = install_uv(progress)
+        uv = ensure_uv(self.on_status)
         # PyTorch goes into its own environment, made from the script's inline metadata
         return [uv, "run", "--script", str(SCRIPT), "--serve"]
 

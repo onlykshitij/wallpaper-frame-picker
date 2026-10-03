@@ -4,9 +4,24 @@
     python -m wallpaper_frame_picker [VIDEO]
     python -m wallpaper_frame_picker cli shots VIDEO
 
-The standalone builds use this as their entry point too.
+On Linux, the app first checks that the system libraries Qt needs are
+there, and offers to install the missing ones.
 """
+import os
 import sys
+
+
+def system_libraries_ok():
+    """True when Qt can load; otherwise shows the install pop-up."""
+    if os.environ.get("FRAME_PICKER_SKIP_DEPS"):
+        return True
+    from . import deps
+    libs = deps.missing()
+    if not libs:
+        return True
+    from . import depdialog
+    return depdialog.ask_and_install([], (deps.install_plan(libs)[0], None),
+                                     lambda progress: deps.install(libs, progress, gui=True))
 
 
 def main():
@@ -17,6 +32,8 @@ def main():
         from . import NOTICE
         print(NOTICE)
     else:
+        if not system_libraries_ok():
+            sys.exit(1)
         from .app import run
         run()
 

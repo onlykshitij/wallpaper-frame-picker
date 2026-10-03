@@ -67,7 +67,7 @@ class Task(QThread):
     def run(self):
         try:
             self.succeeded.emit(self.fn())
-        except U.UpscalerError as e:   # already a readable message
+        except U.SetupError as e:   # already a readable message
             self.failed.emit(str(e))
         except Exception as e:
             traceback.print_exc()

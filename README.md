@@ -52,7 +52,17 @@ macOS (Apple Silicon), in Terminal:
 curl -fLo WallpaperFramePicker.zip https://github.com/onlykshitij/wallpaper-frame-picker/releases/latest/download/WallpaperFramePicker-macos-arm64.zip && ditto -x -k WallpaperFramePicker.zip . && open WallpaperFramePicker.app
 ```
 
-After that, start it again with `./WallpaperFramePicker`, `WallpaperFramePicker.exe` or `open WallpaperFramePicker.app`. The apps are about 200 MB because they carry Python, Qt, FFmpeg and OpenCV inside.
+After that, start it again with `./WallpaperFramePicker`, `WallpaperFramePicker.exe` or `open WallpaperFramePicker.app`.
+
+The download is a small launcher, about 15 MB. The first time it starts, it shows an **Install dependencies** window that lists what it needs, with sizes, about 230 MB in all:
+
+- Python 3.12, and uv to install everything else, if they are not on the computer yet
+- Qt for the interface, PyAV with FFmpeg for video, OpenCV for the analysis, and NumPy
+- on Linux, any system libraries Qt needs that are missing, installed with your distribution's package manager after asking for your password
+
+Press Install dependencies and the window shows each step as it runs. If something fails, the full log stays in the window, with a Copy log button, and is also saved to `install.log` in the data folder. Later launches start the app directly and work offline. To install everything without the window, for example on a server, run the launcher with `--install-deps`.
+
+The Linux launcher runs on any 64-bit glibc distribution from about 2019 on (glibc 2.28 or newer), including Debian 10+, Ubuntu 20.04+, Fedora, RHEL, AlmaLinux and Rocky Linux 8+, Arch and openSUSE. It installs system packages with apt, dnf, zypper or pacman; on other distributions it lists the libraries to install yourself. On RHEL-compatible systems in an X11 session, one library (`libxcb-cursor`) comes from EPEL, so enable it first with `sudo dnf install epel-release`. Distributions built on musl instead of glibc, such as Alpine, are not supported.
 
 The apps are not code-signed. Downloaded with the commands above they open directly. Downloaded through a browser, Windows shows a SmartScreen warning (choose More info, then Run anyway) and macOS refuses the first start (right-click the app, choose Open, then Open again).
 
@@ -71,6 +81,8 @@ Or install it with pip into Python 3.10 or newer, which gives you the `wallpaper
 ```bash
 pip install git+https://github.com/onlykshitij/wallpaper-frame-picker
 ```
+
+On Linux, these also check for the system libraries Qt needs before the window opens, and offer to install the missing ones the same way the standalone app does.
 
 ### AI upscaling
 
@@ -173,6 +185,8 @@ wallpaper-frame-picker-cli export video.mp4 frames/ --picks sheets/picks.txt
 | --- | --- | --- |
 | Analyses, thumbnails, shot edits, selections | the user cache folder, `~/.cache/wallpaper-frame-picker` on Linux | `FRAME_PICKER_CACHE` |
 | Upscaling models | the user data folder, `~/.local/share/wallpaper-frame-picker/models` on Linux | `FRAME_PICKER_MODELS` |
+| The standalone app's Python, Qt, PyAV, OpenCV and NumPy | the user data folder, in `runtime/` | `FRAME_PICKER_DATA` |
+| The launcher's install log | the user data folder, `install.log` | `FRAME_PICKER_DATA` |
 | The app's own copy of uv, if it needed one | the user data folder, in `bin/` | `FRAME_PICKER_DATA` |
 | App settings | Qt's settings file for `wallpaper-frame-picker` | |
 
@@ -212,17 +226,23 @@ uv run --extra upscale pytest
 
 The tests build a 264-frame synthetic video with PyAV. Every frame carries its frame number as a barcode, which lets the tests check that seeking and exporting return the exact frame. `uv run pytest` skips the upscaling tests; with the `upscale` extra they run with a random-weight model, which checks the plumbing but not picture quality. The GUI tests run offscreen.
 
-To build the standalone app for the system you are on, and test it:
+To build the standalone launcher for the system you are on, check it, and test it, including a first-launch install into a temporary folder:
 
 ```bash
-uv run --with pyinstaller python packaging/build.py
+uv run --python 3.12 --with pyinstaller python packaging/build.py
 ```
 
 ```bash
-uv run python packaging/smoke_test.py dist/WallpaperFramePicker-linux-x86_64
+uv run --python 3.12 --with pyinstaller python packaging/check_bundle.py dist/WallpaperFramePicker-linux-x86_64
 ```
 
-PyInstaller only builds for the system it runs on, so the Windows and macOS apps come from GitHub Actions. Pushing a tag such as `v0.1.0` runs `.github/workflows/release.yml`, which builds and tests all three apps and publishes them as a GitHub release. Running that workflow by hand from the Actions tab gives you the builds as downloadable artifacts without making a release. The same workflow can publish to PyPI, after which `uvx wallpaper-frame-picker` works; it is off until you set up a [trusted publisher](https://docs.pypi.org/trusted-publishers/) on PyPI and set the repository variable `PUBLISH_TO_PYPI` to `true`.
+```bash
+uv run --python 3.12 python packaging/smoke_test.py dist/WallpaperFramePicker-linux-x86_64
+```
+
+The launcher carries the app's own wheel and the exact package versions from `uv.lock`, so every first launch installs what CI tested. `check_bundle.py` fails a Linux build that bundles a system library or needs a glibc newer than 2.28. Set `UV_PYTHON_PREFERENCE=only-managed` when building, as CI does, so PyInstaller packs uv's portable Python rather than the system's.
+
+PyInstaller only builds for the system it runs on, so the Windows and macOS launchers come from GitHub Actions. Pushing a tag such as `v0.1.0` runs `.github/workflows/release.yml`, which builds and tests all three launchers, runs the Linux one on seven distributions starting from bare containers, and publishes the builds as a GitHub release. Running that workflow by hand from the Actions tab gives you the builds as downloadable artifacts without making a release. The same workflow can publish to PyPI, after which `uvx wallpaper-frame-picker` works; it is off until you set up a [trusted publisher](https://docs.pypi.org/trusted-publishers/) on PyPI and set the repository variable `PUBLISH_TO_PYPI` to `true`.
 
 The code lives in `src/wallpaper_frame_picker/`:
 
@@ -235,8 +255,13 @@ The code lives in `src/wallpaper_frame_picker/`:
 | `upscale_server.py` | The upscaler process (PyTorch and spandrel) |
 | `app.py` | The Qt app |
 | `cli.py` | `wallpaper-frame-picker-cli` |
+| `launcher.py` | The standalone launcher: checks dependencies, then starts the app |
+| `runtime.py` | The standalone app's Python environment, installed with uv on first launch |
+| `deps.py` | The Linux system libraries Qt needs, and installing them with the package manager |
+| `depdialog.py` | The Install dependencies window (Tk, since Qt may be missing) |
+| `uvtools.py` | Finding or downloading uv |
 
-`packaging/` holds the PyInstaller build script, the entry points of the standalone apps, and the smoke test.
+`packaging/` holds the PyInstaller spec and build script, the launcher's entry points, the bundle check, and the smoke test.
 
 ## Credits
 
