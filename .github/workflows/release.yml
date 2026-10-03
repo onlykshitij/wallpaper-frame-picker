@@ -29,8 +29,8 @@ jobs:
             smoke: dist/WallpaperFramePicker.app/Contents/MacOS/WallpaperFramePicker
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0   # setup-uv publishes only exact, immutable versions
       - name: Libraries Qt needs (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libegl1 libgl1 libxkbcommon0 libxkbcommon-x11-0 libfontconfig1 libdbus-1-3
@@ -62,12 +62,12 @@ jobs:
       - name: Test video for the distribution tests (Linux)
         if: runner.os == 'Linux'
         run: uv run --python 3.12 python -c "import sys; sys.path.insert(0, 'tests'); from conftest import make_video; make_video('dist-smoke.webm')"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: wallpaper-frame-picker-${{ runner.os }}
           path: dist/WallpaperFramePicker-*
           if-no-files-found: error
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: runner.os == 'Linux'
         with:
           name: smoke-video
@@ -98,10 +98,10 @@ jobs:
     steps:
       - name: Prepare
         run: ${{ matrix.prepare }}
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: wallpaper-frame-picker-Linux
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: smoke-video
       - name: Install the dependencies, analyze, export and start the app
@@ -128,7 +128,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           pattern: wallpaper-frame-picker-*
           path: dist
@@ -148,7 +148,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.2.0   # setup-uv publishes only exact, immutable versions
       - run: uv build
       - uses: pypa/gh-action-pypi-publish@release/v1
