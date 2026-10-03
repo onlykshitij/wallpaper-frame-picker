@@ -1950,6 +1950,8 @@ def main(argv):
     QApplication.setAttribute(Qt.AA_DontUseNativeDialogs)
     app = QApplication(argv)
     app.setApplicationName("Wallpaper Frame Picker")
+    app.setDesktopFileName("wallpaper-frame-picker")   # matches the .desktop file, for Wayland task bars
+    app.setWindowIcon(QIcon(str(Path(__file__).with_name("assets") / "icon.png")))
     apply_theme(app)
     win = MainWindow(argv[1] if len(argv) > 1 else None)
     win.show()

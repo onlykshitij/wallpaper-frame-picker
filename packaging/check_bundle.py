@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-"""Checks that a one-file Linux build runs on any glibc distribution from
-the target glibc version on: no bundled library may need a newer glibc or
-C++ runtime, and none of the libraries the spec leaves to the user's system
-may be bundled.
+"""Checks that a Linux build runs on any glibc distribution from the target
+glibc version on: no bundled library may need a newer glibc or C++ runtime,
+and none of the libraries the spec leaves to the user's system may be
+bundled. Takes a build folder (such as build/AppDir) or a one-file build.
 
-    uv run --with pyinstaller python packaging/check_bundle.py dist/WallpaperFramePicker-linux-x86_64
+    uv run --with pyinstaller python packaging/check_bundle.py build/AppDir
 
 Needs objdump (binutils).
 """
@@ -28,14 +28,23 @@ def versions(path, prefix):
 
 
 def main():
-    archive = CArchiveReader(sys.argv[1])
+    target = Path(sys.argv[1])
     problems = []
     newest_glibc, newest_cxx = (0,), (0,)
     with tempfile.TemporaryDirectory() as tmp:
-        names = [n for n in archive.toc if re.search(r"\.so(\.|$)", n)]
+        if target.is_dir():
+            files = {str(p.relative_to(target)): p for p in target.rglob("*")
+                     if p.is_file() and not p.is_symlink() and re.search(r"\.so(\.|$)", p.name)}
+        else:
+            archive = CArchiveReader(str(target))
+            files = {}
+            for name in archive.toc:
+                if re.search(r"\.so(\.|$)", name):
+                    files[name] = Path(tmp) / name.replace("/", "_")
+                    files[name].write_bytes(archive.extract(name))
+        names = sorted(files)
         for name in names:
-            path = Path(tmp) / name.replace("/", "_")
-            path.write_bytes(archive.extract(name))
+            path = files[name]
             base = Path(name).name
             if HOST_LIBS.match(base):
                 problems.append(f"{name} should come from the user's system, not the bundle")

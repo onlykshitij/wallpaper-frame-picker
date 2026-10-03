@@ -22,7 +22,9 @@ LINUX = sys.platform.startswith("linux")
 WINDOWS = sys.platform == "win32"
 MACOS = sys.platform == "darwin"
 
-datas = [(str(ROOT / "build" / "bundle"), "bundle"), (str(ROOT / "LICENSE"), ".")]
+ICON = str(SRC / "wallpaper_frame_picker" / "assets" / "icon.png")   # Pillow turns it into .ico / .icns
+datas = [(str(ROOT / "build" / "bundle"), "bundle"), (str(ROOT / "LICENSE"), "."),
+         (ICON, "wallpaper_frame_picker/assets")]
 datas += copy_metadata("platformdirs")
 EXCLUDES = ["PySide6", "shiboken6", "numpy", "cv2", "av", "torch", "spandrel", "PIL", "pytest"]
 
@@ -44,14 +46,17 @@ def build(entry, name, console):
     a.binaries = [b for b in a.binaries if keep(b)]
     pyz = PYZ(a.pure)
     if MACOS:
-        exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name=name, console=False, upx=False)
+        exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name=name, console=False, upx=False, icon=ICON)
         coll = COLLECT(exe, a.binaries, a.datas, name=name, upx=False)
-        BUNDLE(coll, name=f"{name}.app", bundle_identifier="io.github.onlykshitij.wallpaper-frame-picker")
-    else:   # one file
-        EXE(pyz, a.scripts, a.binaries, a.datas, [], name=name, console=console, upx=False)
+        BUNDLE(coll, name=f"{name}.app", icon=ICON, bundle_identifier="io.github.onlykshitij.wallpaper-frame-picker")
+    elif LINUX:   # a folder; build.py packs it into an AppImage, which is already a single file
+        exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name=name, console=True, upx=False)
+        COLLECT(exe, a.binaries, a.datas, name=name, upx=False)
+    else:   # Windows: one file
+        EXE(pyz, a.scripts, a.binaries, a.datas, [], name=name, console=console, upx=False, icon=ICON)
 
 
-# On Linux one file does both: the app, and the command line with `cli`.
+# On Linux and macOS one program does both: the app, and the command line with `cli`.
 build("entry.py", APP, console=not WINDOWS)
 if WINDOWS:   # Windows GUI programs have no console, so the CLI is its own program
     build("entry_cli.py", APP + "-cli", console=True)

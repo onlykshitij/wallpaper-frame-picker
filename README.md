@@ -18,15 +18,15 @@ It has a desktop app and a command-line tool that share the same analyses, selec
 
 Every shot of the chosen part of the video gets a sheet of its sharpest frames. A star marks the sharpest frame, and a check mark shows the frames you picked.
 
-![The Sheets tab: a sheet of 12 candidate frames from one shot, each labeled with its sharpness and motion](docs/screenshots/sheets.webp)
+![The Sheets tab: a sheet of 12 candidate frames from one shot, each labeled with its sharpness and motion](https://raw.githubusercontent.com/onlykshitij/wallpaper-frame-picker/main/docs/screenshots/sheets.webp)
 
 The Viewer steps through any frame. The 1:1 loupe shows real pixels, and the bars above the timeline show how sharp each frame of the shot is.
 
-![The Viewer tab with the loupe at 200% over a character's face, the sharpness bars for the shot, and the timeline](docs/screenshots/viewer.webp)
+![The Viewer tab with the loupe at 200% over a character's face, the sharpness bars for the shot, and the timeline](https://raw.githubusercontent.com/onlykshitij/wallpaper-frame-picker/main/docs/screenshots/viewer.webp)
 
 With an upscaling model chosen, the loupe compares plain resizing with the model's output.
 
-![The loupe comparing plain 2x resizing with RealESRGAN_x2plus on the same area](docs/screenshots/upscale.webp)
+![The loupe comparing plain 2x resizing with RealESRGAN_x2plus on the same area](https://raw.githubusercontent.com/onlykshitij/wallpaper-frame-picker/main/docs/screenshots/upscale.webp)
 
 The screenshots show frames from [*Spring*](https://commons.wikimedia.org/wiki/File:Spring_-_Blender_Open_Movie.webm) (2019) by Andy Goralczyk and the Blender Foundation, licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The frames appear inside the app's interface, and the upscaled panel is the output of RealESRGAN_x2plus.
 
@@ -34,10 +34,10 @@ The screenshots show frames from [*Spring*](https://commons.wikimedia.org/wiki/F
 
 Each release has a standalone app for Linux, Windows and macOS. It needs no Python, no package manager and no FFmpeg. Run one command, or download the file from the [releases page](https://github.com/onlykshitij/wallpaper-frame-picker/releases/latest) and open it.
 
-Linux (x86_64), in a terminal:
+Linux (x86_64), in a terminal. The app is an AppImage:
 
 ```bash
-curl -fLo WallpaperFramePicker https://github.com/onlykshitij/wallpaper-frame-picker/releases/latest/download/WallpaperFramePicker-linux-x86_64 && chmod +x WallpaperFramePicker && ./WallpaperFramePicker
+curl -fLo WallpaperFramePicker.AppImage https://github.com/onlykshitij/wallpaper-frame-picker/releases/latest/download/WallpaperFramePicker-x86_64.AppImage && chmod +x WallpaperFramePicker.AppImage && ./WallpaperFramePicker.AppImage
 ```
 
 Windows (x86_64), in PowerShell:
@@ -52,7 +52,7 @@ macOS (Apple Silicon), in Terminal:
 curl -fLo WallpaperFramePicker.zip https://github.com/onlykshitij/wallpaper-frame-picker/releases/latest/download/WallpaperFramePicker-macos-arm64.zip && ditto -x -k WallpaperFramePicker.zip . && open WallpaperFramePicker.app
 ```
 
-After that, start it again with `./WallpaperFramePicker`, `WallpaperFramePicker.exe` or `open WallpaperFramePicker.app`.
+After that, start it again with `./WallpaperFramePicker.AppImage`, `WallpaperFramePicker.exe` or `open WallpaperFramePicker.app`. AppImage integration tools such as Gear Lever or AppImageLauncher can add the Linux app to your application menu, with its icon. AppImages run through FUSE, which desktop distributions include; where it is missing, start the app with `./WallpaperFramePicker.AppImage --appimage-extract-and-run`.
 
 The download is a small launcher, about 15 MB. The first time it starts, it shows an **Install dependencies** window that lists what it needs, with sizes, about 230 MB in all:
 
@@ -66,20 +66,22 @@ The Linux launcher runs on any 64-bit glibc distribution from about 2019 on (gli
 
 The apps are not code-signed. Downloaded with the commands above they open directly. Downloaded through a browser, Windows shows a SmartScreen warning (choose More info, then Run anyway) and macOS refuses the first start (right-click the app, choose Open, then Open again).
 
-On Linux the same file also runs the command line, as `./WallpaperFramePicker cli ...`. On Windows the command line is a separate download, `WallpaperFramePicker-cli-windows-x86_64.exe`.
+On Linux and macOS the same app also runs the command line, as `./WallpaperFramePicker.AppImage cli ...` or `WallpaperFramePicker.app/Contents/MacOS/WallpaperFramePicker cli ...`. On Windows the command line is a separate download, `WallpaperFramePicker-cli-windows-x86_64.exe`.
 
 ### With Python instead
 
-If you have [uv](https://docs.astral.sh/uv/), this runs the latest code straight from GitHub:
+The app is on [PyPI](https://pypi.org/project/wallpaper-frame-picker/). With [uv](https://docs.astral.sh/uv/), one command runs it:
 
 ```bash
-uvx --from git+https://github.com/onlykshitij/wallpaper-frame-picker wallpaper-frame-picker
+uvx wallpaper-frame-picker
 ```
+
+To run the newest unreleased code instead, use `uvx --from git+https://github.com/onlykshitij/wallpaper-frame-picker wallpaper-frame-picker`.
 
 Or install it with pip into Python 3.10 or newer, which gives you the `wallpaper-frame-picker` and `wallpaper-frame-picker-cli` commands:
 
 ```bash
-pip install git+https://github.com/onlykshitij/wallpaper-frame-picker
+pip install wallpaper-frame-picker
 ```
 
 On Linux, these also check for the system libraries Qt needs before the window opens, and offer to install the missing ones the same way the standalone app does.
@@ -88,7 +90,7 @@ On Linux, these also check for the system libraries Qt needs before the window o
 
 AI upscaling runs on PyTorch, a download of about 3 GB, so nothing includes it up front. The first time you pick a model, the app asks before downloading PyTorch into a separate environment. If uv is not installed, it also downloads its own copy of uv (about 20 MB) to do that. Everything after that first time works offline.
 
-With the Python install you can add PyTorch yourself instead, with `pip install 'wallpaper-frame-picker[upscale] @ git+https://github.com/onlykshitij/wallpaper-frame-picker'` or `uv run --extra upscale wallpaper-frame-picker` in a clone. The upscaler then runs on the same Python as the app.
+With the Python install you can add PyTorch yourself instead, with `pip install 'wallpaper-frame-picker[upscale]'` or `uv run --extra upscale wallpaper-frame-picker` in a clone. The upscaler then runs on the same Python as the app.
 
 On Linux, PyTorch from PyPI includes CUDA support. On Windows, PyPI only has the CPU build; for an NVIDIA GPU, install the CUDA build into a Python install by following [pytorch.org](https://pytorch.org/get-started/locally/) and use the `upscale` extra. Apple GPUs are used through MPS, which has not been tested.
 
@@ -229,15 +231,15 @@ The tests build a 264-frame synthetic video with PyAV. Every frame carries its f
 To build the standalone launcher for the system you are on, check it, and test it, including a first-launch install into a temporary folder:
 
 ```bash
-uv run --python 3.12 --with pyinstaller python packaging/build.py
+uv run --python 3.12 --with pyinstaller --with pillow python packaging/build.py
 ```
 
 ```bash
-uv run --python 3.12 --with pyinstaller python packaging/check_bundle.py dist/WallpaperFramePicker-linux-x86_64
+uv run --python 3.12 --with pyinstaller python packaging/check_bundle.py build/AppDir
 ```
 
 ```bash
-uv run --python 3.12 python packaging/smoke_test.py dist/WallpaperFramePicker-linux-x86_64
+uv run --python 3.12 python packaging/smoke_test.py dist/WallpaperFramePicker-x86_64.AppImage
 ```
 
 The launcher carries the app's own wheel and the exact package versions from `uv.lock`, so every first launch installs what CI tested. `check_bundle.py` fails a Linux build that bundles a system library or needs a glibc newer than 2.28. Set `UV_PYTHON_PREFERENCE=only-managed` when building, as CI does, so PyInstaller packs uv's portable Python rather than the system's.
@@ -269,7 +271,7 @@ Wallpaper Frame Picker builds on [PyAV](https://github.com/PyAV-Org/PyAV) and FF
 
 ## License
 
-Wallpaper Frame Picker is free software under the [GNU Affero General Public License v3.0 or later](LICENSE). You may use it for anything, including commercial work, and you may study, change and share it. If you distribute it, or a program built from it, you must release that program's source code under the same license. The AGPL also covers running a modified version as a network service: its users must be able to get the source too.
+Wallpaper Frame Picker is free software under the [GNU Affero General Public License v3.0 or later](https://github.com/onlykshitij/wallpaper-frame-picker/blob/main/LICENSE). You may use it for anything, including commercial work, and you may study, change and share it. If you distribute it, or a program built from it, you must release that program's source code under the same license. The AGPL also covers running a modified version as a network service: its users must be able to get the source too.
 
 The license covers the code. The images and videos you work on with it stay yours, and frames you export from a video remain covered by that video's copyright. Models you download keep their own licenses.
 

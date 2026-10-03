@@ -2,17 +2,18 @@
 """Builds the standalone app, a small launcher, with PyInstaller for the
 current platform.
 
-    uv run --with pyinstaller python packaging/build.py
+    uv run --with pyinstaller --with pillow python packaging/build.py
 
 The launcher installs Qt, PyAV, OpenCV and NumPy on first launch, so it
 only carries Python, Tk, the app's wheel, and the exact package versions
 from uv.lock. Writes to dist/:
-  Linux    WallpaperFramePicker-linux-<arch>             one file, app and `cli`
+  Linux    WallpaperFramePicker-<arch>.AppImage          app and `cli`
   Windows  WallpaperFramePicker-windows-<arch>.exe       one file, app
            WallpaperFramePicker-cli-windows-<arch>.exe   one file, command line
   macOS    WallpaperFramePicker-macos-<arch>.zip         WallpaperFramePicker.app
 """
 import json
+import os
 import platform
 import re
 import shutil
@@ -83,6 +84,66 @@ def make_bundle():
     print("bundle:", ", ".join(p.name for p in BUNDLE.iterdir()))
 
 
+APPIMAGETOOL = ("https://github.com/AppImage/appimagetool/releases/download/continuous/"
+                "appimagetool-{arch}.AppImage")
+APPRUN = """#!/bin/sh
+# Starts Wallpaper Frame Picker from inside the AppImage.
+HERE="$(dirname "$(readlink -f "$0")")"
+exec "$HERE/usr/lib/wallpaper-frame-picker/WallpaperFramePicker" "$@"
+"""
+DESKTOP = """[Desktop Entry]
+Type=Application
+Name=Wallpaper Frame Picker
+GenericName=Video frame picker
+Comment=Find the sharpest frame of every shot in a video and save it as a wallpaper
+Exec=WallpaperFramePicker %f
+Icon=wallpaper-frame-picker
+Terminal=false
+Categories=AudioVideo;Video;
+MimeType=video/mp4;video/x-matroska;video/webm;video/quicktime;video/x-msvideo;
+Keywords=wallpaper;video;frame;screenshot;sharp;
+"""
+
+
+def appimagetool():
+    found = shutil.which("appimagetool")
+    if found:
+        return found
+    tool = ROOT / "build" / "tools" / "appimagetool"
+    if not tool.exists():
+        tool.parent.mkdir(parents=True, exist_ok=True)
+        arch = "x86_64" if ARCH == "x86_64" else "aarch64"
+        print("downloading appimagetool")
+        urllib.request.urlretrieve(APPIMAGETOOL.format(arch=arch), tool)
+        tool.chmod(0o755)
+    return str(tool)
+
+
+def make_appimage():
+    """Packs the Linux build folder into dist/WallpaperFramePicker-<arch>.AppImage.
+    The AppDir stays in build/AppDir for packaging/check_bundle.py."""
+    appdir = ROOT / "build" / "AppDir"
+    shutil.rmtree(appdir, ignore_errors=True)
+    shutil.copytree(DIST / "WallpaperFramePicker", appdir / "usr" / "lib" / "wallpaper-frame-picker", symlinks=True)
+    shutil.rmtree(DIST / "WallpaperFramePicker")
+    (appdir / "AppRun").write_text(APPRUN)
+    (appdir / "AppRun").chmod(0o755)
+    (appdir / "wallpaper-frame-picker.desktop").write_text(DESKTOP)
+    apps = appdir / "usr" / "share" / "applications"
+    apps.mkdir(parents=True)
+    shutil.copy(appdir / "wallpaper-frame-picker.desktop", apps)
+    icon = ROOT / "src" / "wallpaper_frame_picker" / "assets" / "icon.png"
+    shutil.copy(icon, appdir / "wallpaper-frame-picker.png")
+    icons = appdir / "usr" / "share" / "icons" / "hicolor" / "512x512" / "apps"
+    icons.mkdir(parents=True)
+    shutil.copy(icon, icons / "wallpaper-frame-picker.png")
+    (appdir / ".DirIcon").symlink_to("wallpaper-frame-picker.png")
+    out = DIST / f"WallpaperFramePicker-{ARCH}.AppImage"
+    env = {**os.environ, "ARCH": "x86_64" if ARCH == "x86_64" else "aarch64",
+           "APPIMAGE_EXTRACT_AND_RUN": "1"}   # appimagetool is an AppImage too; this runs it without FUSE
+    subprocess.run([appimagetool(), str(appdir), str(out)], check=True, env=env)
+
+
 def main():
     if DIST.exists():
         shutil.rmtree(DIST)
@@ -91,7 +152,7 @@ def main():
                     "--distpath", str(DIST), "--workpath", str(ROOT / "build" / "pyinstaller"),
                     str(ROOT / "packaging" / "wallpaper_frame_picker.spec")], check=True)
     if sys.platform.startswith("linux"):
-        (DIST / "WallpaperFramePicker").rename(DIST / f"WallpaperFramePicker-linux-{ARCH}")
+        make_appimage()
     elif sys.platform == "win32":
         (DIST / "WallpaperFramePicker.exe").rename(DIST / f"WallpaperFramePicker-windows-{ARCH}.exe")
         (DIST / "WallpaperFramePicker-cli.exe").rename(DIST / f"WallpaperFramePicker-cli-windows-{ARCH}.exe")

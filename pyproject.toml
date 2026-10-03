@@ -1,6 +1,6 @@
 [project]
 name = "wallpaper-frame-picker"
-version = "0.1.0"
+version = "0.1.1"
 description = "Find the sharpest frame of each shot in a video, pick the best pose, and export it as a full-resolution PNG, optionally AI-upscaled."
 readme = "README.md"
 license = "AGPL-3.0-or-later"
@@ -50,6 +50,9 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/wallpaper_frame_picker"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["/docs", "/.github"]   # screenshots and CI are not needed to build or test the package
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

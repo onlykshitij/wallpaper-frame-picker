@@ -100,6 +100,12 @@ class _Dialog:
         root = self.root
         root.withdraw()   # shown once laid out, by _place()
         root.title("Wallpaper Frame Picker")
+        try:
+            from pathlib import Path
+            self.icon = tk.PhotoImage(file=str(Path(__file__).with_name("assets") / "icon.png"))
+            root.iconphoto(True, self.icon)
+        except Exception:
+            pass   # no icon is fine
         root.configure(bg=BG, padx=22, pady=18)
         root.resizable(False, False)
         base = font.nametofont("TkDefaultFont")
