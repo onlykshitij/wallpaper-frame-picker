@@ -47,6 +47,24 @@ def wheel_size(name, version):
     return max(sizes) if sizes else None
 
 
+# PySide6 6.10 and newer need glibc 2.34; 6.9.3 is the last release that runs
+# on glibc 2.28. So the launcher lets Qt float between the two, and uv picks
+# the newest one the user's system supports. Everything else stays pinned.
+QT_FOR_OLD_GLIBC = "6.9.3"
+
+
+def float_qt(requirements):
+    out = []
+    for line in requirements.splitlines():
+        m = re.match(r"^pyside6-essentials==(\d+)\.(\d+)\S*", line)
+        if m:
+            line = f"pyside6-essentials>={QT_FOR_OLD_GLIBC},<{m[1]}.{int(m[2]) + 1}"
+        elif line.startswith("shiboken6=="):
+            continue   # follows the PySide6 version
+        out.append(line)
+    return "\n".join(out) + "\n"
+
+
 def make_bundle():
     uv = shutil.which("uv") or sys.exit("the build needs uv on PATH")
     shutil.rmtree(BUNDLE, ignore_errors=True)
@@ -55,12 +73,13 @@ def make_bundle():
     req = BUNDLE / "requirements.txt"
     subprocess.run([uv, "export", "--project", str(ROOT), "--no-dev", "--no-emit-project", "--no-hashes",
                     "--format", "requirements-txt", "-o", str(req)], check=True)
-    sizes = {}
+    sizes = {}   # from the exact versions, before Qt's pin becomes a range
     for line in req.read_text().splitlines():
         m = re.match(r"^([A-Za-z0-9_.-]+)==([^\s;]+)", line)
         if m:
             sizes[m[1].lower().replace("_", "-")] = wheel_size(m[1], m[2])
     (BUNDLE / "sizes.json").write_text(json.dumps(sizes, indent=1))
+    req.write_text(float_qt(req.read_text()))
     print("bundle:", ", ".join(p.name for p in BUNDLE.iterdir()))
 
 

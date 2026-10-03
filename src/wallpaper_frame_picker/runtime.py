@@ -130,8 +130,15 @@ def install(progress):
          f"Setting up Python {PYTHON}")
     wheel = next(bundle.glob("*.whl"))
     progress("Downloading Qt, PyAV, OpenCV and NumPy…")
-    _run([uv, "pip", "install", "--python", _python(venv), "-r", bundle / "requirements.txt", wheel], progress,
-         "Installing the Python packages")
+    try:
+        _run([uv, "pip", "install", "--python", _python(venv), "-r", bundle / "requirements.txt", wheel], progress,
+             "Installing the Python packages")
+    except SetupError as e:
+        if "matching platform tag" not in str(e):
+            raise
+        # an older system the tested versions have no builds for
+        progress("The tested versions have no builds for this system. Installing the newest versions that do…")
+        _run([uv, "pip", "install", "--python", _python(venv), wheel], progress, "Installing the Python packages")
     progress("Checking the installation…")
     _run([_python(venv), "-c", "import PySide6.QtWidgets, av, cv2, numpy, wallpaper_frame_picker"], progress,
          "Checking the installation")

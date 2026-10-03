@@ -60,7 +60,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - image: debian:11
+          - image: debian:12
             prepare: apt-get update && apt-get install -y ca-certificates
           - image: ubuntu:20.04
             prepare: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates
