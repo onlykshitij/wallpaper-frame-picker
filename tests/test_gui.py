@@ -9,7 +9,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 QtWidgets = pytest.importorskip("PySide6.QtWidgets")
 
-from conftest import SHOTS, read_barcode   # noqa: E402
+from conftest import N_FRAMES, SHOTS, read_barcode   # noqa: E402
 from wallpaper_frame_picker import app as G   # noqa: E402
 
 
@@ -42,7 +42,8 @@ def win(qapp, video):
 def test_find_shots_select_and_export(qapp, win, tmp_path, monkeypatch):
     win.whole_range()
     win.start_analysis()
-    wait(qapp, lambda: win.an is not None and not win.worker.isRunning())
+    # Opening the video may load an older partial analysis first, so wait for this one.
+    wait(qapp, lambda: win.an is not None and win.an.n == N_FRAMES and not win.worker.isRunning())
     assert win.an.shots == SHOTS
     assert win.shot_list.count() == 4
 
