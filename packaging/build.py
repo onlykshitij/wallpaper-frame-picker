@@ -141,7 +141,11 @@ def make_appimage():
     out = DIST / f"WallpaperFramePicker-{ARCH}.AppImage"
     env = {**os.environ, "ARCH": "x86_64" if ARCH == "x86_64" else "aarch64",
            "APPIMAGE_EXTRACT_AND_RUN": "1"}   # appimagetool is an AppImage too; this runs it without FUSE
-    subprocess.run([appimagetool(), str(appdir), str(out)], check=True, env=env)
+    # Gear Lever and AppImageUpdate read this to find new releases, and compare the
+    # .zsync file appimagetool writes into its working directory, here dist/.
+    repo = os.environ.get("GITHUB_REPOSITORY", "onlykshitij/wallpaper-frame-picker").replace("/", "|")
+    update = f"gh-releases-zsync|{repo}|latest|{out.name}.zsync"
+    subprocess.run([appimagetool(), "-u", update, str(appdir), str(out)], check=True, env=env, cwd=DIST)
 
 
 def main():

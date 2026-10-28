@@ -39,6 +39,14 @@ jobs:
       - name: Check that the Linux build runs on any distribution
         if: runner.os == 'Linux'
         run: uv run --python 3.12 --with pyinstaller python packaging/check_bundle.py build/AppDir
+      - name: Check that AppImage updaters can find new releases (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          set -eu
+          app=dist/WallpaperFramePicker-x86_64.AppImage
+          # read from the file, since with APPIMAGE_EXTRACT_AND_RUN the AppImage ignores --appimage-updateinformation
+          readelf --string-dump=.upd_info "$app" | grep -F "gh-releases-zsync|$(echo "$GITHUB_REPOSITORY" | tr / '|')|latest|WallpaperFramePicker-x86_64.AppImage.zsync"
+          grep -a "^SHA-1: $(sha1sum "$app" | cut -d' ' -f1)" "$app.zsync"
       - name: Remove the root certificates github.com uses (Windows)
         if: runner.os == 'Windows'
         shell: pwsh

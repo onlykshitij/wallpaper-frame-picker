@@ -52,7 +52,7 @@ macOS (Apple Silicon), in Terminal:
 curl -fLo WallpaperFramePicker.zip https://github.com/onlykshitij/wallpaper-frame-picker/releases/latest/download/WallpaperFramePicker-macos-arm64.zip && ditto -x -k WallpaperFramePicker.zip . && open WallpaperFramePicker.app
 ```
 
-After that, start it again with `./WallpaperFramePicker.AppImage`, `WallpaperFramePicker.exe` or `open WallpaperFramePicker.app`. AppImage integration tools such as Gear Lever or AppImageLauncher can add the Linux app to your application menu, with its icon. AppImages run through FUSE, which desktop distributions include; where it is missing, start the app with `./WallpaperFramePicker.AppImage --appimage-extract-and-run`.
+After that, start it again with `./WallpaperFramePicker.AppImage`, `WallpaperFramePicker.exe` or `open WallpaperFramePicker.app`. AppImage integration tools such as Gear Lever or AppImageLauncher can add the Linux app to your application menu, with its icon. The AppImage carries its update information, so Gear Lever and AppImageUpdate also find and install new releases. AppImages run through FUSE, which desktop distributions include; where it is missing, start the app with `./WallpaperFramePicker.AppImage --appimage-extract-and-run`.
 
 The download is a small launcher, about 15 MB. The first time it starts, it shows an **Install dependencies** window that lists what it needs, with sizes, about 230 MB in all:
 
